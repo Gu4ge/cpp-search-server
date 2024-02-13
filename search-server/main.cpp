@@ -132,12 +132,16 @@ private:
         return words;
     }
 
+    bool ParseQueryWord(const string& str) const{
+        return str[0] == '-';
+    }
+
     Query ParseQuery(const string &text) const
     {
         Query query;
         for (string &word : SplitIntoWordsNoStop(text))
         {
-            if (word[0] == '-')
+            if (ParseQueryWord(word))
             {
                 word = word.substr(1);
                 if (!IsStopWord(word))
@@ -150,6 +154,10 @@ private:
         return query;
     }
 
+    double FindIDF(int len) const{
+        return log(static_cast<double>(document_count_) / len);
+    }
+
     vector<Document> FindAllDocuments(const Query &query_words) const
     {
         map<int, double> document_to_relevance;
@@ -160,7 +168,7 @@ private:
 
                 for (const auto &[document_id, term_freq] : word_to_document_freqs_.at(word))
                 {
-                    const double IDF = log(static_cast<double>(document_count_) / word_to_document_freqs_.at(word).size());
+                    const double IDF = FindIDF( word_to_document_freqs_.at(word).size());
                     document_to_relevance[document_id] += IDF * term_freq;
                 }
             }
