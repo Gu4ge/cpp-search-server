@@ -6,10 +6,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+const double EXP = numeric_limits<double>::epsilon();
 
 string ReadLine()
 {
@@ -94,48 +96,23 @@ public:
     template <class T>
     vector<Document> FindTopDocuments(const string &raw_query, T func) const
     {
-        vector<Document> matched_documents;
-        if constexpr (is_same_v<T, DocumentStatus>)
-        {
-            switch (func)
-            {
-            case DocumentStatus::ACTUAL:
-                return FindTopDocuments(raw_query, [](int document_id, DocumentStatus status, int rating)
-                                        { return status == DocumentStatus::ACTUAL; });
-            case DocumentStatus::BANNED:
-                return FindTopDocuments(raw_query, [](int document_id, DocumentStatus status, int rating)
-                                        { return status == DocumentStatus::BANNED; });
-            case DocumentStatus::IRRELEVANT:
-                return FindTopDocuments(raw_query, [](int document_id, DocumentStatus status, int rating)
-                                        { return status == DocumentStatus::IRRELEVANT; });
-            case DocumentStatus::REMOVED:
-                return FindTopDocuments(raw_query, [](int document_id, DocumentStatus status, int rating)
-                                        { return status == DocumentStatus::REMOVED; });
-            }
-        }
-        else
-        {
+        const Query query = ParseQuery(raw_query);
+        vector<Document> matched_documents = FindAllDocuments(query, func);
 
-            const Query query = ParseQuery(raw_query);
-            matched_documents = FindAllDocuments(query, func);
-
-            sort(matched_documents.begin(), matched_documents.end(),
-                 [](const Document &lhs, const Document &rhs)
+        sort(matched_documents.begin(), matched_documents.end(),
+             [](const Document &lhs, const Document &rhs)
+             {
+                 if (abs(lhs.relevance - rhs.relevance) < EXP)
                  {
-                     if (abs(lhs.relevance - rhs.relevance) < 1e-6)
-                     {
-                         return lhs.rating > rhs.rating;
-                     }
-                     else
-                     {
-                         return lhs.relevance > rhs.relevance;
-                     }
-                 });
-            if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT)
-            {
-                matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
-            }
+                     return lhs.rating > rhs.rating;
+                 }
+                 return lhs.relevance > rhs.relevance;
+             });
+        if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT)
+        {
+            matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
+
         return matched_documents;
     }
 
@@ -145,6 +122,11 @@ public:
                                 { return status == DocumentStatus::ACTUAL; });
     }
 
+    vector<Document> FindTopDocuments(const string &raw_query, DocumentStatus status)
+    {
+        return FindTopDocuments(raw_query, [status](int document_id, DocumentStatus stat, int rating)
+                                { return stat == status; });
+    }
     int GetDocumentCount() const
     {
         return documents_.size();
@@ -216,11 +198,7 @@ private:
         {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings)
-        {
-            rating_sum += rating;
-        }
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
 
