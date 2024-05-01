@@ -81,7 +81,6 @@ enum class DocumentStatus
 class SearchServer
 {
 public:
-
     SearchServer() = default;
 
     template <class T>
@@ -100,7 +99,8 @@ public:
                 stop_words_.insert(word);
             }
         }
-        else{
+        else
+        {
             throw invalid_argument("a special symbol"s);
         }
     }
@@ -121,16 +121,15 @@ public:
         {
             throw invalid_argument("id already exists"s);
         }
-        if (!IsValidWord(document))
-        {
-            throw invalid_argument("unacceptable symbols"s);
-        }
 
         const vector<string> words = SplitIntoWordsNoStop(document);
+
+        auto tmp = 1.0 / static_cast<double>(words.size());
         for (auto &word : words)
         {
-            word_to_document_freqs_[word][document_id] += 1.0 / words.size();
+            word_to_document_freqs_[word][document_id] += tmp;
         }
+
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
 
         documents_index_.push_back(document_id);
@@ -231,7 +230,6 @@ private:
                        { return c >= '\0' && c < ' '; });
     }
 
-    
     bool IsStopWord(const string &word) const
     {
         return stop_words_.count(word) > 0;
@@ -242,11 +240,17 @@ private:
         vector<string> words;
         for (const string &word : SplitIntoWords(text))
         {
+            if (!IsValidWord(word))
+            {
+                throw invalid_argument("unacceptable symbols"s);
+            }
+
             if (!IsStopWord(word))
             {
                 words.push_back(word);
             }
         }
+
         return words;
     }
 
@@ -271,19 +275,19 @@ private:
     {
         QueryWord result;
 
-        if (text.empty())
-        {
-            throw invalid_argument("no text after minus sign");
-        }
         bool is_minus = false;
         if (text[0] == '-')
         {
             is_minus = true;
             text = text.substr(1);
         }
-        if (text.empty() || text[0] == '-' || !IsValidWord(text))
+        if (text[0] == '-')
         {
             throw invalid_argument("more than one minus sign");
+        }
+        if (text.empty())
+        {
+            throw invalid_argument("no text after minus sign");
         }
 
         return {text, is_minus, IsStopWord(text)};
@@ -363,4 +367,3 @@ private:
         return matched_documents;
     }
 };
-
