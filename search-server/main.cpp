@@ -289,6 +289,10 @@ private:
         {
             throw invalid_argument("no text after minus sign");
         }
+        if (!IsValidWord(text))
+            {
+                throw invalid_argument("unacceptable symbols"s);
+            }
 
         return {text, is_minus, IsStopWord(text)};
     }
